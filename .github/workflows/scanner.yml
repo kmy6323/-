@@ -8,6 +8,10 @@ on:
 jobs:
   run-scanner:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        universe: [us_agentt, kr]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -21,8 +25,8 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Run scanner
+      - name: Run scanner (${{ matrix.universe }})
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: python scanner.py
+        run: python scanner.py --universe ${{ matrix.universe }}

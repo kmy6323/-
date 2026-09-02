@@ -212,13 +212,21 @@ TELEGRAM_API_URL = "https://api.telegram.org/bot{token}/sendMessage"
 TELEGRAM_MSG_LIMIT = 4096
 
 
-def format_signal_message(result_df: pd.DataFrame) -> str:
+MARKET_LABELS = {
+    "us_agentt": "🇺🇸 미국(NYSE/NASDAQ/AMEX)",
+    "sp500": "🇺🇸 S&P500",
+    "kr": "🇰🇷 국내(KOSPI+KOSDAQ)",
+}
+
+
+def format_signal_message(result_df: pd.DataFrame, market_label: str = "") -> str:
     """스캔 결과를 텔레그램 메시지 형식으로 포맷팅."""
+    prefix = f"[{market_label}] " if market_label else ""
     if result_df.empty:
-        return "오늘 발생한 시그널이 없습니다."
+        return f"{prefix}오늘 발생한 시그널이 없습니다."
 
     today = datetime.today().strftime("%Y-%m-%d")
-    lines = [f"📈 MACD GC + 이격도 시그널 ({today})", f"총 {len(result_df)}개 종목", ""]
+    lines = [f"📈 {prefix}MACD GC + 이격도 시그널 ({today})", f"총 {len(result_df)}개 종목", ""]
     for _, row in result_df.iterrows():
         lines.append(
             f"• {row['Name']} ({row['Code']})\n"
@@ -277,7 +285,8 @@ def main():
     if not result_df.empty:
         print(result_df.to_string(index=False))
 
-    send_telegram_message(format_signal_message(result_df))
+    market_label = "지정 종목" if args.codes else MARKET_LABELS[args.universe]
+    send_telegram_message(format_signal_message(result_df, market_label))
 
 
 if __name__ == "__main__":
