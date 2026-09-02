@@ -9,7 +9,11 @@ Pine Script "MACD GC + 이격도 조건 시그널" 로직을 Python으로 이식
      -> Pine: ta.lowest(disparity, 10)[1] <= 85
 
 의존성:
-  pip install finance-datareader pandas numpy
+  pip install finance-datareader pandas numpy requests
+
+텔레그램 알림:
+  환경변수 TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID 를 설정하면 스캔 완료 후
+  결과를 텔레그램 메시지로 전송한다.
 """
 
 from __future__ import annotations
@@ -23,6 +27,7 @@ from datetime import datetime, timedelta
 
 import FinanceDataReader as fdr
 import pandas as pd
+import requests
 
 # ── 파라미터 (Pine Script와 1:1 동일) ──────────────────────
 FAST_LEN = 5
@@ -203,6 +208,44 @@ def scan(codes: pd.DataFrame | None = None, days: int = 120, sleep_sec: float = 
     return pd.DataFrame(results)
 
 
+TELEGRAM_API_URL = "https://api.telegram.org/bot{token}/sendMessage"
+TELEGRAM_MSG_LIMIT = 4096
+
+
+def format_signal_message(result_df: pd.DataFrame) -> str:
+    """스캔 결과를 텔레그램 메시지 형식으로 포맷팅."""
+    if result_df.empty:
+        return "오늘 발생한 시그널이 없습니다."
+
+    today = datetime.today().strftime("%Y-%m-%d")
+    lines = [f"📈 MACD GC + 이격도 시그널 ({today})", f"총 {len(result_df)}개 종목", ""]
+    for _, row in result_df.iterrows():
+        lines.append(
+            f"• {row['Name']} ({row['Code']})\n"
+            f"  날짜: {row['Date']} / 종가: {row['Close']} / 이격도: {row['Disparity']}"
+        )
+    message = "\n".join(lines)
+    if len(message) > TELEGRAM_MSG_LIMIT:
+        message = message[: TELEGRAM_MSG_LIMIT - 20] + "\n... (이하 생략)"
+    return message
+
+
+def send_telegram_message(text: str) -> None:
+    """환경변수(TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID)로 지정된 텔레그램 챗방에 메시지 전송."""
+    token = os.environ.get("TELEGRAM_BOT_TOKEN")
+    chat_id = os.environ.get("TELEGRAM_CHAT_ID")
+    if not token or not chat_id:
+        print("[텔레그램] TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID 미설정, 전송 생략")
+        return
+
+    url = TELEGRAM_API_URL.format(token=token)
+    try:
+        resp = requests.post(url, data={"chat_id": chat_id, "text": text}, timeout=10)
+        resp.raise_for_status()
+    except requests.RequestException as e:
+        print(f"[텔레그램] 전송 실패: {e}")
+
+
 def main():
     parser = argparse.ArgumentParser(description="MACD GC + 이격도 조건 시그널 스캐너")
     parser.add_argument("--codes", nargs="*", help="특정 종목코드만 스캔 (예: --codes AAPL TSLA)")
@@ -233,6 +276,8 @@ def main():
     print(f"\n총 {len(result_df)}개 종목 시그널 발생")
     if not result_df.empty:
         print(result_df.to_string(index=False))
+
+    send_telegram_message(format_signal_message(result_df))
 
 
 if __name__ == "__main__":
