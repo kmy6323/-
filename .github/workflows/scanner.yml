@@ -25,6 +25,20 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Get weekly cache key
+        if: matrix.universe == 'us_agentt'
+        id: date
+        run: echo "week=$(date +%G-%V)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache US universe list
+        if: matrix.universe == 'us_agentt'
+        uses: actions/cache@v4
+        with:
+          path: us_universe_agentt.csv
+          key: us-universe-${{ steps.date.outputs.week }}
+          restore-keys: |
+            us-universe-
+
       - name: Run scanner (${{ matrix.universe }})
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
