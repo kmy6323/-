@@ -3,7 +3,7 @@ name: Scanner
 on:
   workflow_dispatch:
   repository_dispatch:
-    types: [run-scanner]
+    types: [trigger-scanner]
 
 jobs:
   run-scanner:
