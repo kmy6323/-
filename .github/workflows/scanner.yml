@@ -12,26 +12,30 @@ jobs:
       fail-fast: false
       matrix:
         universe: [us_agentt, kr]
+    env:
+      SHOULD_RUN: ${{ github.event_name != 'repository_dispatch' || github.event.client_payload.market == matrix.universe }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Set up Python
+        if: env.SHOULD_RUN == 'true'
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           cache: 'pip'
 
       - name: Install dependencies
+        if: env.SHOULD_RUN == 'true'
         run: pip install -r requirements.txt
 
       - name: Get weekly cache key
-        if: matrix.universe == 'us_agentt'
+        if: env.SHOULD_RUN == 'true' && matrix.universe == 'us_agentt'
         id: date
         run: echo "week=$(date +%G-%V)" >> "$GITHUB_OUTPUT"
 
       - name: Cache US universe list
-        if: matrix.universe == 'us_agentt'
+        if: env.SHOULD_RUN == 'true' && matrix.universe == 'us_agentt'
         uses: actions/cache@v4
         with:
           path: us_universe_agentt.csv
@@ -40,6 +44,7 @@ jobs:
             us-universe-
 
       - name: Run scanner (${{ matrix.universe }})
+        if: env.SHOULD_RUN == 'true'
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}

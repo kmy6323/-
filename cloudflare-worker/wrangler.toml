@@ -1,0 +1,6 @@
+name = "scanner-cron-worker"
+main = "src/index.js"
+compatibility_date = "2024-01-01"
+
+[triggers]
+crons = ["0 1 * * 1-5", "30 14 * * 1-5", "30 15 * * 1-5"]
